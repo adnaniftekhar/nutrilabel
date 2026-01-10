@@ -34,9 +34,10 @@ if ! gcloud iam service-accounts describe ${SERVICE_ACCOUNT} &> /dev/null; then
         --project=${PROJECT_ID} || true
     
     # Grant permissions
+    # Note: Vision API uses ml.developer role, not vision.annotator
     gcloud projects add-iam-policy-binding ${PROJECT_ID} \
         --member="serviceAccount:${SERVICE_ACCOUNT}" \
-        --role="roles/vision.annotator" \
+        --role="roles/ml.developer" \
         --condition=None || true
     
     gcloud projects add-iam-policy-binding ${PROJECT_ID} \
