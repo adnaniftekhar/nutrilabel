@@ -1,0 +1,183 @@
+#!/bin/bash
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Configuration
+ENV="${ENV:-prod}"
+REGION="${REGION:-us-central1}"
+SERVICE_NAME="nutrilabel2-mvp"
+AR_REPO="nutrilabel"
+SERVICE_ACCOUNT_NAME="${SERVICE_NAME}-runtime"
+
+# Generate random 4-character suffix
+RAND4=$(openssl rand -hex 2 | tr '[:lower:]' '[:upper:]')
+PROJECT_ID="${SERVICE_NAME}-${ENV}-${RAND4}"
+
+echo -e "${GREEN}NutriLabel GCP Bootstrap Script${NC}"
+echo "=================================="
+echo "Environment: ${ENV}"
+echo "Project ID: ${PROJECT_ID}"
+echo "Region: ${REGION}"
+echo ""
+
+# Check for required tools
+if ! command -v gcloud &> /dev/null; then
+    echo -e "${RED}Error: gcloud CLI is not installed${NC}"
+    exit 1
+fi
+
+# Check for billing account
+if [ -z "$BILLING_ACCOUNT" ]; then
+    echo -e "${YELLOW}Warning: BILLING_ACCOUNT environment variable not set${NC}"
+    echo "Please set it with: export BILLING_ACCOUNT=YOUR_BILLING_ACCOUNT_ID"
+    echo "You can find it with: gcloud billing accounts list"
+    exit 1
+fi
+
+# Note: Using Vertex AI, so no API key needed - uses Application Default Credentials
+# The service account will be created and configured below
+
+# Check if project already exists
+if gcloud projects describe "${PROJECT_ID}" &> /dev/null; then
+    echo -e "${YELLOW}Project ${PROJECT_ID} already exists. Using existing project.${NC}"
+else
+    echo -e "${GREEN}Creating new GCP project: ${PROJECT_ID}${NC}"
+    gcloud projects create "${PROJECT_ID}" --name="NutriLabel MVP ${ENV}"
+
+    echo -e "${GREEN}Linking billing account${NC}"
+    gcloud billing projects link "${PROJECT_ID}" --billing-account="${BILLING_ACCOUNT}"
+
+    echo -e "${GREEN}Setting default project${NC}"
+    gcloud config set project "${PROJECT_ID}"
+fi
+
+# Set project
+gcloud config set project "${PROJECT_ID}"
+
+# Enable required APIs
+echo -e "${GREEN}Enabling required APIs...${NC}"
+APIS=(
+    "run.googleapis.com"
+    "cloudbuild.googleapis.com"
+    "artifactregistry.googleapis.com"
+    "secretmanager.googleapis.com"
+    "vision.googleapis.com"
+    "aiplatform.googleapis.com"
+    "logging.googleapis.com"
+)
+
+for api in "${APIS[@]}"; do
+    echo "  Enabling ${api}..."
+    gcloud services enable "${api}" --project="${PROJECT_ID}" || true
+done
+
+# Wait for APIs to be fully enabled
+echo -e "${GREEN}Waiting for APIs to be fully enabled...${NC}"
+sleep 10
+
+# Create Artifact Registry repository
+echo -e "${GREEN}Creating Artifact Registry repository...${NC}"
+if gcloud artifacts repositories describe "${AR_REPO}" \
+    --location="${REGION}" \
+    --repository-format=docker \
+    --project="${PROJECT_ID}" &> /dev/null; then
+    echo "  Repository ${AR_REPO} already exists"
+else
+    gcloud artifacts repositories create "${AR_REPO}" \
+        --repository-format=docker \
+        --location="${REGION}" \
+        --description="Docker repository for NutriLabel" \
+        --project="${PROJECT_ID}"
+fi
+
+# Create service account for Cloud Run
+echo -e "${GREEN}Creating Cloud Run service account...${NC}"
+SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+if gcloud iam service-accounts describe "${SERVICE_ACCOUNT_EMAIL}" \
+    --project="${PROJECT_ID}" &> /dev/null; then
+    echo "  Service account already exists"
+else
+    gcloud iam service-accounts create "${SERVICE_ACCOUNT_NAME}" \
+        --display-name="NutriLabel Cloud Run Runtime" \
+        --project="${PROJECT_ID}"
+
+    # Grant necessary permissions
+    echo "  Granting permissions..."
+    gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+        --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+        --role="roles/vision.annotator" \
+        --condition=None
+
+    gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+        --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+        --role="roles/aiplatform.user" \
+        --condition=None
+fi
+
+# Note: Vertex AI uses Application Default Credentials (ADC)
+# No need to store API key in Secret Manager
+# The service account will authenticate automatically
+echo -e "${GREEN}Vertex AI will use Application Default Credentials${NC}"
+echo "  Service account ${SERVICE_ACCOUNT_EMAIL} has Vertex AI User role"
+
+# Grant Cloud Build service account permissions
+echo -e "${GREEN}Granting Cloud Build permissions...${NC}"
+CLOUD_BUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
+
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="serviceAccount:${CLOUD_BUILD_SA}" \
+    --role="roles/run.admin" \
+    --condition=None || true
+
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="serviceAccount:${CLOUD_BUILD_SA}" \
+    --role="roles/iam.serviceAccountUser" \
+    --condition=None || true
+
+# Write .gcp.env file
+echo -e "${GREEN}Writing .gcp.env file...${NC}"
+cat > .gcp.env <<EOF
+# GCP Project Configuration
+# Generated by bootstrap.sh on $(date)
+
+PROJECT_ID=${PROJECT_ID}
+PROJECT_NUMBER=${PROJECT_NUMBER}
+REGION=${REGION}
+SERVICE_NAME=${SERVICE_NAME}
+AR_REPO=${AR_REPO}
+SERVICE_ACCOUNT=${SERVICE_ACCOUNT_EMAIL}
+EOF
+
+echo ""
+echo -e "${GREEN}✓ Bootstrap completed successfully!${NC}"
+echo ""
+echo "Project ID: ${PROJECT_ID}"
+echo "Region: ${REGION}"
+echo "Service Account: ${SERVICE_ACCOUNT_EMAIL}"
+echo ""
+echo "Vertex AI Configuration:"
+echo "  - Vertex AI API: Enabled"
+echo "  - Service Account Role: Vertex AI User"
+echo "  - Authentication: Application Default Credentials (ADC)"
+echo ""
+echo "Configuration saved to .gcp.env"
+echo ""
+echo "Next steps:"
+echo "1. Deploy using Cloud Build:"
+echo "   gcloud builds submit --config cloudbuild.yaml \\"
+echo "     --substitutions=_REGION=${REGION},_SERVICE=${SERVICE_NAME},_AR_REPO=${AR_REPO}"
+echo ""
+echo "2. Or load the .gcp.env file and deploy:"
+echo "   source .gcp.env"
+echo "   gcloud builds submit --config cloudbuild.yaml"
+echo ""
+echo "Note: Vertex AI uses Application Default Credentials."
+echo "      No API key needed - the service account authenticates automatically."
