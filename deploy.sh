@@ -70,10 +70,17 @@ gcloud services enable aiplatform.googleapis.com --project=${PROJECT_ID} || true
 echo -e "${GREEN}Granting Cloud Build service account permissions...${NC}"
 PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
 CLOUD_BUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-# Storage permissions for source code uploads
+# Storage permissions for source code uploads (Cloud Build SA)
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:${CLOUD_BUILD_SA}" \
+    --role="roles/storage.admin" \
+    --condition=None || true
+
+# Storage permissions for Compute Engine default SA (used by Cloud Build)
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:${COMPUTE_SA}" \
     --role="roles/storage.admin" \
     --condition=None || true
 
