@@ -66,6 +66,29 @@ gcloud services enable artifactregistry.googleapis.com --project=${PROJECT_ID} |
 gcloud services enable vision.googleapis.com --project=${PROJECT_ID} || true
 gcloud services enable aiplatform.googleapis.com --project=${PROJECT_ID} || true
 
+# Grant Cloud Build service account necessary permissions
+echo -e "${GREEN}Granting Cloud Build service account permissions...${NC}"
+PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
+CLOUD_BUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+
+# Storage permissions for source code uploads
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:${CLOUD_BUILD_SA}" \
+    --role="roles/storage.admin" \
+    --condition=None || true
+
+# Cloud Run deployment permissions
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:${CLOUD_BUILD_SA}" \
+    --role="roles/run.admin" \
+    --condition=None || true
+
+# Service account user (to deploy with service account)
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:${CLOUD_BUILD_SA}" \
+    --role="roles/iam.serviceAccountUser" \
+    --condition=None || true
+
 echo ""
 echo -e "${GREEN}Starting Cloud Build deployment...${NC}"
 echo ""
