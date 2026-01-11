@@ -26,18 +26,25 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Next.js creates: .next/standalone/app/ (where app is the WORKDIR)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
-# Find and move the app directory contents to root
-RUN if [ -d "./app" ] && [ -f "./app/server.js" ]; then \
+# Find and move the app directory contents to root (if needed)
+# Next.js standalone structure varies: sometimes ./app/, sometimes already in root
+RUN if [ -f "./server.js" ]; then \
+      echo "✅ server.js already in root, no move needed"; \
+    elif [ -d "./app" ] && [ -f "./app/server.js" ]; then \
+      echo "✅ Found ./app/server.js, moving to root"; \
       cp -r ./app/* . && \
       cp -r ./app/.next . 2>/dev/null || true; \
     else \
       APP_DIR=$(find . -type d -name "app" -mindepth 1 -maxdepth 3 | head -1); \
       if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/server.js" ]; then \
+        echo "✅ Found server.js in $APP_DIR, moving to root"; \
         cp -r "$APP_DIR"/* . && \
         cp -r "$APP_DIR"/.next . 2>/dev/null || true; \
       else \
-        echo "ERROR: Could not find app directory or server.js"; \
+        echo "ERROR: Could not find server.js"; \
+        echo "Searching for server.js:"; \
         find . -name "server.js" -type f; \
+        echo "Current directory contents:"; \
         ls -la; \
         exit 1; \
       fi; \
