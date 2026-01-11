@@ -19,15 +19,16 @@ steps:
 
   # Build the container image
   - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
     args:
-      - "build"
-      - "-f"
-      - "Dockerfile"
-      - "-t"
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
-      - "-t"
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest"
-      - "."
+      - "-c"
+      - |
+        TAG="${SHORT_SHA:-$(date +%s)}"
+        docker build -f Dockerfile \
+          -t ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${TAG} \
+          -t ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest \
+          .
+    id: "build-image"
 
   # Push the container image to Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
@@ -44,7 +45,7 @@ steps:
       - "deploy"
       - "${_SERVICE}"
       - "--image"
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest"
       - "--region"
       - "${_REGION}"
       - "--platform"
