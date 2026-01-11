@@ -31,9 +31,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy necessary files from standalone output
-# Standalone output structure: .next/standalone contains server.js and needed files
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# Copy standalone output
+# Next.js standalone output includes the full directory path
+# In Cloud Build (WORKDIR=/app), the structure will be: .next/standalone/app/
+# We need to copy from the nested app directory
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/app/ ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
