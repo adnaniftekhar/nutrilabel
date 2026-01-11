@@ -88,6 +88,9 @@ export async function scoreNutrition({
 
   const prompt = buildNutritionPrompt(ocrText, preferencesContext);
   console.log(`[${requestId}] Prompt built, length: ${prompt.length} characters`);
+  console.log(`[${requestId}] ========== FULL PROMPT SENT TO GEMINI ==========`);
+  console.log(prompt);
+  console.log(`[${requestId}] ========== END OF PROMPT ==========`);
 
   const maxRetries = 2;
   let lastError: Error | null = null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ScoreResult } from "@/lib/schemas";
 import { saveToHistory } from "@/lib/history";
 import {
@@ -113,7 +113,7 @@ export default function LabelCapture() {
     reader.readAsDataURL(file);
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = useCallback(async () => {
     if (!selectedFile) {
       setError("Please select an image first");
       return;
@@ -187,7 +187,18 @@ export default function LabelCapture() {
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [selectedFile, preferencesContext, responseSpeed]);
+
+  // Auto-analyze when image is selected and preview is ready
+  useEffect(() => {
+    if (selectedFile && imagePreview && !result && !isAnalyzing) {
+      // Small delay to ensure preview is rendered
+      const timer = setTimeout(() => {
+        handleAnalyze();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedFile, imagePreview, result, isAnalyzing, handleAnalyze]);
 
   const handleReset = () => {
     setImagePreview(null);
@@ -437,8 +448,8 @@ export default function LabelCapture() {
         </div>
       )}
 
-      {/* Sticky bottom CTA (mobile) */}
-      {imagePreview && !result && !isAnalyzing && (
+      {/* Retry button (only shown if analysis failed) */}
+      {imagePreview && !result && !isAnalyzing && error && (
         <div className="fixed bottom-20 left-0 right-0 px-4 pb-4 safe-area-bottom md:relative md:bottom-0 md:pb-0">
           <div className="max-w-4xl mx-auto">
             <PrimaryButton
@@ -446,7 +457,7 @@ export default function LabelCapture() {
               disabled={!imagePreview || isAnalyzing}
               loading={isAnalyzing}
             >
-              Analyze
+              Retry Analysis
             </PrimaryButton>
           </div>
         </div>
