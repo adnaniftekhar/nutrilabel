@@ -64,6 +64,9 @@ export interface UserPreferences {
 
   // Custom constraints (free text)
   customConstraints: string;
+
+  // Response speed preference
+  responseSpeed: "fast" | "thorough"; // "fast" = faster models, "thorough" = pro models for better analysis
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -116,6 +119,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     foodDyes: false,
   },
   customConstraints: "",
+  responseSpeed: "fast", // Default to faster response
 };
 
 const STORAGE_KEY = "nutrilabel_preferences";

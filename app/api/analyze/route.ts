@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("image") as File | null;
     const preferencesContext = formData.get("preferences") as string | null; // Optional preferences JSON string
+    const responseSpeed = (formData.get("responseSpeed") as "fast" | "thorough") || "fast"; // Default to fast
 
     if (!file) {
       return NextResponse.json(
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest) {
         ocrText: trimmedOcrText, // Use trimmed text for scoring
         requestId,
         preferencesContext: preferencesContext || undefined, // Pass preferences if provided
+        responseSpeed, // Pass response speed preference
       });
       console.log(`[${requestId}] Scoring completed successfully`);
     } catch (error) {

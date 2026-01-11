@@ -100,6 +100,15 @@ export default function PreferencesPage() {
     setSaved(false);
   };
 
+  const handleResponseSpeedChange = (speed: "fast" | "thorough") => {
+    setPreferences((prev) => ({
+      ...prev,
+      responseSpeed: speed,
+    }));
+    setHasChanges(true);
+    setSaved(false);
+  };
+
   const handleSave = () => {
     savePreferences(preferences);
     setHasChanges(false);
@@ -126,34 +135,24 @@ export default function PreferencesPage() {
       <header className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-40 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-lg font-bold text-gray-900">Preferences</h1>
-          <div className="flex items-center gap-3">
-            {saved && (
-              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Saved
-              </span>
-            )}
-            {hasChanges && (
-              <button
-                onClick={handleSave}
-                className="px-4 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+          {saved && (
+            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Save
-              </button>
-            )}
-          </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Saved
+            </span>
+          )}
         </div>
       </header>
 
@@ -386,6 +385,92 @@ export default function PreferencesPage() {
             </div>
           </section>
 
+          {/* Response Speed Section */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-base font-semibold text-gray-900">
+                Response Speed
+              </h2>
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                  aria-label="Response speed information"
+                >
+                  <svg
+                    className="w-4 h-4 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </button>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all z-50 pointer-events-none shadow-xl">
+                  <div className="mb-2 font-semibold text-sm">Model Information:</div>
+                  <div className="mb-2 space-y-1">
+                    <div>
+                      <strong className="text-green-400">Faster:</strong> gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.0-flash
+                    </div>
+                    <div>
+                      <strong className="text-blue-400">Thorough:</strong> gemini-2.5-pro, gemini-2.5-flash-lite, gemini-2.5-flash
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-gray-700 text-gray-300">
+                    Multiple models are tried in order if one fails.
+                  </div>
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-4">
+              Choose between faster responses or more thorough analysis.
+            </p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 cursor-pointer transition-colors bg-gray-50">
+                <input
+                  type="radio"
+                  name="responseSpeed"
+                  value="fast"
+                  checked={preferences.responseSpeed === "fast"}
+                  onChange={() => handleResponseSpeedChange("fast")}
+                  className="w-5 h-5 text-green-600 border-gray-300 focus:ring-green-500 focus:ring-2"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    Faster
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    Quick responses using optimized models (default)
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 cursor-pointer transition-colors bg-gray-50">
+                <input
+                  type="radio"
+                  name="responseSpeed"
+                  value="thorough"
+                  checked={preferences.responseSpeed === "thorough"}
+                  onChange={() => handleResponseSpeedChange("thorough")}
+                  className="w-5 h-5 text-green-600 border-gray-300 focus:ring-green-500 focus:ring-2"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    Thorough
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    More detailed analysis using advanced models (slower)
+                  </div>
+                </div>
+              </label>
+            </div>
+          </section>
+
           {/* Custom Constraints Section */}
           <section className="bg-white border border-gray-200 rounded-xl p-5">
             <h2 className="text-base font-semibold text-gray-900 mb-4">
@@ -404,8 +489,49 @@ export default function PreferencesPage() {
             />
           </section>
 
-          {/* Reset Button */}
-          <div className="pt-4 border-t border-gray-200">
+          {/* Disclaimer */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-900 mb-1">
+                  Analysis Disclaimer
+                </p>
+                <p className="text-xs text-yellow-800">
+                  Nutrition analysis is provided for informational purposes only
+                  and should not replace professional medical advice. Always
+                  consult with a healthcare provider for dietary decisions,
+                  especially if you have allergies, medical conditions, or
+                  specific nutritional needs. The AI models used may vary based on
+                  your response speed preference, and multiple models are tried
+                  automatically if one fails.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 border-t border-gray-200">
+            {hasChanges && (
+              <button
+                onClick={handleSave}
+                className="w-full px-6 py-3 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/25"
+              >
+                Save Preferences
+              </button>
+            )}
             <button
               onClick={handleReset}
               className="w-full px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"

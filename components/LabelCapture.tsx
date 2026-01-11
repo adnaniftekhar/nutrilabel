@@ -78,6 +78,7 @@ export default function LabelCapture() {
   const [showOcrText, setShowOcrText] = useState(false);
   const [savedToHistory, setSavedToHistory] = useState(false);
   const [preferencesContext, setPreferencesContext] = useState<string>("");
+  const [responseSpeed, setResponseSpeed] = useState<"fast" | "thorough">("fast");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load preferences on mount
@@ -85,6 +86,7 @@ export default function LabelCapture() {
     const preferences = loadPreferences();
     const formatted = formatPreferencesForPrompt(preferences);
     setPreferencesContext(formatted);
+    setResponseSpeed(preferences.responseSpeed);
   }, []);
 
   const handleFileSelect = async (file: File) => {
@@ -139,6 +141,9 @@ export default function LabelCapture() {
       if (preferencesContext) {
         formData.append("preferences", preferencesContext);
       }
+      
+      // Include response speed preference
+      formData.append("responseSpeed", responseSpeed);
 
       const response = await fetch("/api/analyze", {
         method: "POST",

@@ -41,10 +41,12 @@ export async function scoreNutrition({
   ocrText,
   requestId,
   preferencesContext,
+  responseSpeed = "fast",
 }: {
   ocrText: string;
   requestId: string;
   preferencesContext?: string;
+  responseSpeed?: "fast" | "thorough";
 }): Promise<ScoreResult> {
   console.log(`[${requestId}] Starting nutrition scoring...`);
   
@@ -57,14 +59,26 @@ export async function scoreNutrition({
   // - gemini-2.0-flash (stable)
   // DO NOT USE: gemini-1.5-flash, gemini-1.5-pro, gemini-3-flash, gemini-3-pro (NOT AVAILABLE)
   const modelNameRaw = process.env.GEMINI_MODEL;
-  const modelCandidates = modelNameRaw 
-    ? [modelNameRaw] 
-    : [
-        "gemini-2.5-pro",        // Most capable, handles longer responses better
-        "gemini-2.5-flash-lite", // Fastest, cost-efficient, handles longer responses
-        "gemini-2.5-flash",      // Fast, balanced
-        "gemini-2.0-flash",      // Stable fallback
-      ];
+  
+  // Select model candidates based on response speed preference
+  let modelCandidates: string[];
+  if (modelNameRaw) {
+    modelCandidates = [modelNameRaw];
+  } else if (responseSpeed === "thorough") {
+    // Thorough mode: Use pro models first for better analysis
+    modelCandidates = [
+      "gemini-2.5-pro",        // Most capable, best for thorough analysis
+      "gemini-2.5-flash-lite", // Fast fallback
+      "gemini-2.5-flash",      // Additional fallback
+    ];
+  } else {
+    // Fast mode (default): Use faster models
+    modelCandidates = [
+      "gemini-2.5-flash-lite", // Fastest, cost-efficient
+      "gemini-2.5-flash",      // Fast, balanced
+      "gemini-2.0-flash",      // Stable fallback
+    ];
+  }
   
   console.log(`[${requestId}] Model candidates to try: ${modelCandidates.join(", ")}`);
   console.log(`[${requestId}] OCR text length: ${ocrText.length} characters`);
