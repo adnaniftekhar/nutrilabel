@@ -31,17 +31,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy necessary files
-# Note: standalone output includes public and .next/static in its own structure
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Ensure server.js exists (standalone output should include it)
-RUN test -f server.js || (echo "ERROR: server.js not found in standalone output" && exit 1)
-
-# Set ownership
-RUN chown -R nextjs:nodejs /app
+# Copy necessary files from standalone output
+# Standalone output structure: .next/standalone contains server.js and needed files
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 
