@@ -1,8 +1,28 @@
 steps:
+  # Diagnostic step: verify required files exist
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        echo "=== Checking build context ==="
+        ls -la
+        echo ""
+        echo "=== Checking for Dockerfile ==="
+        test -f Dockerfile && echo "✅ Dockerfile exists" || (echo "❌ Dockerfile missing!" && exit 1)
+        echo ""
+        echo "=== Checking for package.json ==="
+        test -f package.json && echo "✅ package.json exists" || (echo "❌ package.json missing!" && exit 1)
+        echo ""
+        echo "=== Dockerfile first 10 lines ==="
+        head -10 Dockerfile
+
   # Build the container image
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "build"
+      - "-f"
+      - "Dockerfile"
       - "-t"
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
       - "-t"
