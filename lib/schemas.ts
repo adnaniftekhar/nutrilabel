@@ -1,10 +1,19 @@
 import { z } from "zod";
 
+// Health mode score schema
+const HealthModeScoreSchema = z.object({
+  score: z.number().min(1).max(10),
+  justification: z.string().max(400),
+});
+
 export const ScoreResultSchema = z.object({
   generalScore: z.number().min(1).max(10),
-  diabetesScore: z.number().min(1).max(10),
   generalJustification: z.string().max(400),
-  diabetesJustification: z.string().max(400),
+  // Dynamic health mode scores - keys match preference health mode keys
+  healthModeScores: z
+    .record(z.string(), HealthModeScoreSchema)
+    .optional()
+    .default({}),
   warnings: z.array(z.string()).optional(),
   extracted: z
     .object({

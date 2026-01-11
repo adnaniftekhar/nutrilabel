@@ -40,9 +40,11 @@ function getVertexAIClient(): VertexAI {
 export async function scoreNutrition({
   ocrText,
   requestId,
+  preferencesContext,
 }: {
   ocrText: string;
   requestId: string;
+  preferencesContext?: string;
 }): Promise<ScoreResult> {
   console.log(`[${requestId}] Starting nutrition scoring...`);
   
@@ -58,16 +60,19 @@ export async function scoreNutrition({
   const modelCandidates = modelNameRaw 
     ? [modelNameRaw] 
     : [
-        "gemini-2.5-flash",      // Fast, balanced - recommended default
-        "gemini-2.5-flash-lite", // Fastest, cost-efficient
+        "gemini-2.5-pro",        // Most capable, handles longer responses better
+        "gemini-2.5-flash-lite", // Fastest, cost-efficient, handles longer responses
+        "gemini-2.5-flash",      // Fast, balanced
         "gemini-2.0-flash",      // Stable fallback
-        "gemini-2.5-pro",        // Most capable (slower)
       ];
   
   console.log(`[${requestId}] Model candidates to try: ${modelCandidates.join(", ")}`);
   console.log(`[${requestId}] OCR text length: ${ocrText.length} characters`);
+  if (preferencesContext) {
+    console.log(`[${requestId}] Preferences context provided: ${preferencesContext.length} characters`);
+  }
 
-  const prompt = buildNutritionPrompt(ocrText);
+  const prompt = buildNutritionPrompt(ocrText, preferencesContext);
   console.log(`[${requestId}] Prompt built, length: ${prompt.length} characters`);
 
   const maxRetries = 2;
@@ -87,7 +92,7 @@ export async function scoreNutrition({
           temperature: 0.3,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 2048, // Increased from 1024 to ensure complete JSON responses
+          maxOutputTokens: 4096, // Increased to 4096 to handle multiple health mode scores and longer JSON responses
         },
       });
       console.log(`[${requestId}] ✅ Generative model '${modelName}' obtained successfully`);

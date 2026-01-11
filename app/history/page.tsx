@@ -85,13 +85,13 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
       {/* Header */}
-      <header className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-40">
+      <header className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-40 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-lg font-bold text-gray-900">History</h1>
           {entries.length > 0 && (
             <button
               onClick={handleClearAll}
-              className="text-sm text-red-600 hover:text-red-700 font-medium"
+              className="text-sm text-red-600 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
             >
               Clear All
             </button>
@@ -171,10 +171,37 @@ export default function HistoryPage() {
                           </div>
                           <div>
                             <div className="text-xs text-gray-600 mb-1">
-                              Diabetes-Friendly
+                              {(() => {
+                                // Show first health mode if available, otherwise show Diabetes-Friendly for backward compatibility
+                                const healthModeScores = entry.scores.healthModeScores;
+                                if (healthModeScores && Object.keys(healthModeScores).length > 0) {
+                                  const firstMode = Object.keys(healthModeScores)[0];
+                                  const modeTitles: Record<string, string> = {
+                                    diabetesFriendly: "Diabetes-Friendly",
+                                    heartHealth: "Heart Health",
+                                    weightManagement: "Weight Management",
+                                    gutHealth: "Gut Health",
+                                    highProtein: "High-Protein",
+                                    lowSodium: "Low-Sodium",
+                                    lowAddedSugar: "Low-Added-Sugar",
+                                  };
+                                  return modeTitles[firstMode] || "Health Mode";
+                                }
+                                // Backward compatibility
+                                return "Diabetes-Friendly";
+                              })()}
                             </div>
                             <div className="text-xl font-bold text-purple-600">
-                              {entry.scores.diabetesScore}/10
+                              {(() => {
+                                // Show first health mode score if available, otherwise show diabetesScore for backward compatibility
+                                const healthModeScores = entry.scores.healthModeScores;
+                                if (healthModeScores && Object.keys(healthModeScores).length > 0) {
+                                  const firstMode = Object.keys(healthModeScores)[0];
+                                  return healthModeScores[firstMode]?.score || 0;
+                                }
+                                // Backward compatibility - check if old schema has diabetesScore
+                                return (entry.scores as any).diabetesScore || 0;
+                              })()}/10
                             </div>
                           </div>
                         </div>

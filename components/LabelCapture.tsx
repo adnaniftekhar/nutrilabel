@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ScoreResult } from "@/lib/schemas";
 import { saveToHistory } from "@/lib/history";
+import {
+  loadPreferences,
+  formatPreferencesForPrompt,
+} from "@/lib/preferences";
 import UploadCard from "./UploadCard";
 import ImagePreviewCard from "./ImagePreviewCard";
 import PrimaryButton from "./PrimaryButton";
@@ -73,7 +77,15 @@ export default function LabelCapture() {
   const [ocrText, setOcrText] = useState<string | null>(null);
   const [showOcrText, setShowOcrText] = useState(false);
   const [savedToHistory, setSavedToHistory] = useState(false);
+  const [preferencesContext, setPreferencesContext] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load preferences on mount
+  useEffect(() => {
+    const preferences = loadPreferences();
+    const formatted = formatPreferencesForPrompt(preferences);
+    setPreferencesContext(formatted);
+  }, []);
 
   const handleFileSelect = async (file: File) => {
     setError(null);
@@ -122,6 +134,11 @@ export default function LabelCapture() {
       // Upload and analyze
       const formData = new FormData();
       formData.append("image", compressedBlob);
+      
+      // Include preferences context if available
+      if (preferencesContext) {
+        formData.append("preferences", preferencesContext);
+      }
 
       const response = await fetch("/api/analyze", {
         method: "POST",
