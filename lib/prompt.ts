@@ -1,5 +1,7 @@
 export function buildNutritionPrompt(ocrText: string): string {
-  return `You are a nutrition analysis expert. Analyze the following nutrition label text and provide scores and explanations.
+  return `You are a nutrition analysis expert. Analyze the following OCR text extracted from a nutrition label and provide scores and explanations.
+
+IMPORTANT: This OCR text was extracted from an image that should be a nutrition facts label. Only analyze if the text contains nutrition information (calories, macronutrients, vitamins, etc.). If the text does not appear to be from a nutrition label, you may still proceed but note any concerns.
 
 OCR Text from Nutrition Label:
 ${ocrText}

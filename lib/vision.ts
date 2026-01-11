@@ -26,9 +26,28 @@ export async function extractTextFromImage(
   const visionClient = getVisionClient();
 
   try {
+    // Language hints for common languages used in nutrition labels
+    // Vision API will auto-detect, but hints improve accuracy
+    const languageHints = [
+      "en", // English
+      "es", // Spanish
+      "fr", // French
+      "de", // German
+      "it", // Italian
+      "pt", // Portuguese
+      "zh", // Chinese
+      "ja", // Japanese
+      "ko", // Korean
+      "ar", // Arabic
+      "hi", // Hindi
+    ];
+
     // Try document text detection first (better for structured labels)
     const [documentResult] = await visionClient.documentTextDetection({
       image: { content: imageBuffer },
+      imageContext: {
+        languageHints,
+      },
     });
 
     const fullTextAnnotation = documentResult.fullTextAnnotation;
@@ -37,9 +56,12 @@ export async function extractTextFromImage(
       return fullTextAnnotation.text;
     }
 
-    // Fallback to regular text detection
+    // Fallback to regular text detection with language hints
     const [textResult] = await visionClient.textDetection({
       image: { content: imageBuffer },
+      imageContext: {
+        languageHints,
+      },
     });
 
     const detections = textResult.textAnnotations;
@@ -58,6 +80,22 @@ export async function extractTextFromImage(
     console.error("Vision API error:", error);
     // Provide more detailed error information
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorString = String(error);
+    
+    // Check for authentication/credential errors
+    if (
+      errorMessage.includes("invalid_grant") ||
+      errorMessage.includes("invalid_rapt") ||
+      errorMessage.includes("reauth") ||
+      errorString.includes("invalid_grant") ||
+      errorString.includes("invalid_rapt")
+    ) {
+      throw new Error(
+        "Authentication failed. Your Google Cloud credentials have expired or are invalid. " +
+        "Please run: gcloud auth application-default login"
+      );
+    }
+    
     if (errorMessage.includes("PERMISSION_DENIED") || errorMessage.includes("403")) {
       throw new Error("Permission denied. Check that Vision API is enabled and service account has proper permissions.");
     }

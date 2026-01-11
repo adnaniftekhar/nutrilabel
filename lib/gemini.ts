@@ -87,7 +87,7 @@ export async function scoreNutrition({
           temperature: 0.3,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048, // Increased from 1024 to ensure complete JSON responses
         },
       });
       console.log(`[${requestId}] ✅ Generative model '${modelName}' obtained successfully`);
@@ -124,13 +124,21 @@ export async function scoreNutrition({
         console.log(`[${requestId}] ✅ API call successful with model '${modelName}', parsing response...`);
 
         // Extract text from Vertex AI response
-        const responseText = response.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const candidate = response.response.candidates?.[0];
+        const finishReason = candidate?.finishReason;
+        const responseText = candidate?.content?.parts?.[0]?.text || "";
+        
         console.log(`[${requestId}] Response text length: ${responseText.length} characters`);
 
         if (!responseText) {
           console.error(`[${requestId}] ❌ Empty response from Vertex AI`);
           console.error(`[${requestId}] Response structure:`, JSON.stringify(response.response, null, 2));
           throw new Error("Empty response from Vertex AI");
+        }
+
+        // Check if response was truncated
+        if (finishReason === "MAX_TOKENS" || finishReason === "OTHER") {
+          console.warn(`[${requestId}] ⚠️ Response may be truncated (finishReason: ${finishReason})`);
         }
 
         // Extract JSON from response (handle cases where model adds markdown)

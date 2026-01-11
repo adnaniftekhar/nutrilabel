@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60; // 60 seconds max
 
 const MAX_IMAGE_BYTES = parseInt(process.env.MAX_IMAGE_BYTES || "6000000", 10);
-const OCR_MIN_CHARS = parseInt(process.env.OCR_MIN_CHARS || "40", 10);
+const OCR_MIN_CHARS = parseInt(process.env.OCR_MIN_CHARS || "50", 10); // Increased to 50 to ensure it's a real label
 
 function generateRequestId(): string {
   return createHash("sha256")
@@ -112,11 +112,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If OCR text is too short, we could use Gemini vision as fallback
-    // For MVP, we'll proceed with what we have
-    if (ocrText.length < OCR_MIN_CHARS) {
+    // Validate that OCR text exists and meets minimum length requirement
+    // This ensures we're analyzing a nutrition label, not just any food image
+    const trimmedOcrText = ocrText.trim();
+    if (!trimmedOcrText || trimmedOcrText.length === 0) {
       console.warn(
-        `[${requestId}] OCR text too short (${ocrText.length} < ${OCR_MIN_CHARS}), proceeding anyway`
+        `[${requestId}] No text found in image - likely not a nutrition label`
+      );
+      return NextResponse.json(
+        {
+          error: "No text detected in image. Please take a photo of a nutrition label with visible text.",
+          requestId,
+          details: "This image appears to be a photo of food, not a nutrition label. Please capture or upload an image of the nutrition facts label on the product packaging.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (trimmedOcrText.length < OCR_MIN_CHARS) {
+      console.warn(
+        `[${requestId}] OCR text too short (${trimmedOcrText.length} < ${OCR_MIN_CHARS}) - likely not a nutrition label`
+      );
+      return NextResponse.json(
+        {
+          error: `Not enough text detected (${trimmedOcrText.length} characters). Please ensure the nutrition label is clearly visible and in focus.`,
+          requestId,
+          details: `Minimum ${OCR_MIN_CHARS} characters required. This image may not be a nutrition label or the text may be too blurry to read.`,
+          ocrText: trimmedOcrText, // Include OCR text so user can see what was detected
+        },
+        { status: 400 }
       );
     }
 
@@ -136,7 +160,7 @@ export async function POST(request: NextRequest) {
     let scoreResult;
     try {
       scoreResult = await scoreNutrition({
-        ocrText,
+        ocrText: trimmedOcrText, // Use trimmed text for scoring
         requestId,
       });
       console.log(`[${requestId}] Scoring completed successfully`);
@@ -159,6 +183,7 @@ export async function POST(request: NextRequest) {
       success: true,
       requestId,
       imageHash,
+      ocrText: trimmedOcrText, // Include OCR text in response for user to review
       result: validated,
     });
   } catch (error) {

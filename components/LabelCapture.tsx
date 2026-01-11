@@ -14,6 +14,7 @@ interface AnalyzeResponse {
   success: boolean;
   requestId: string;
   imageHash: string;
+  ocrText?: string; // OCR text extracted from the image
   result: ScoreResult;
 }
 
@@ -69,6 +70,8 @@ export default function LabelCapture() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScoreResult | null>(null);
+  const [ocrText, setOcrText] = useState<string | null>(null);
+  const [showOcrText, setShowOcrText] = useState(false);
   const [savedToHistory, setSavedToHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,13 +130,22 @@ export default function LabelCapture() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        // If error response includes OCR text, show it to the user
+        if (errorData.ocrText) {
+          setOcrText(errorData.ocrText);
+          setShowOcrText(true); // Auto-expand OCR text on error
+        }
+        // Include details in error message if available
+        const errorMessage = errorData.error || `HTTP ${response.status}`;
+        const errorDetails = errorData.details ? ` ${errorData.details}` : "";
+        throw new Error(errorMessage + errorDetails);
       }
 
       const data: AnalyzeResponse = await response.json();
 
       if (data.success && data.result) {
         setResult(data.result);
+        setOcrText(data.ocrText || null); // Store OCR text for display
 
         // Auto-save to history
         await saveToHistory({
@@ -159,6 +171,8 @@ export default function LabelCapture() {
     setImagePreview(null);
     setSelectedFile(null);
     setResult(null);
+    setOcrText(null);
+    setShowOcrText(false);
     setError(null);
     setSavedToHistory(false);
     if (fileInputRef.current) {
@@ -206,34 +220,92 @@ export default function LabelCapture() {
 
           {/* Error state */}
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-800 mb-1">
-                    Analysis failed
-                  </p>
-                  <p className="text-sm text-red-700">{error}</p>
-                  <button
-                    onClick={handleAnalyze}
-                    className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 underline"
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    Try again
-                  </button>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800 mb-1">
+                      Analysis failed
+                    </p>
+                    <p className="text-sm text-red-700">{error}</p>
+                    <button
+                      onClick={handleAnalyze}
+                      className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 underline"
+                    >
+                      Try again
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Show OCR text in error state if available */}
+              {ocrText && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <button
+                    onClick={() => setShowOcrText(!showOcrText)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className="w-5 h-5 text-gray-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">
+                        Detected Text ({ocrText.length} characters)
+                      </span>
+                    </div>
+                    <svg
+                      className={`w-5 h-5 text-gray-600 transition-transform ${
+                        showOcrText ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  {showOcrText && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs text-gray-600 mb-2">
+                        This is the text that was extracted from the image:
+                      </p>
+                      <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+                        <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                          {ocrText}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -282,6 +354,62 @@ export default function LabelCapture() {
 
             {result.warnings && result.warnings.length > 0 && (
               <WarningsCard warnings={result.warnings} />
+            )}
+
+            {/* OCR Text Display */}
+            {ocrText && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <button
+                  onClick={() => setShowOcrText(!showOcrText)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-5 h-5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-900">
+                      Detected Text ({ocrText.length} characters)
+                    </span>
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transition-transform ${
+                      showOcrText ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                {showOcrText && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-600 mb-2">
+                      This is the text that was extracted from the nutrition label:
+                    </p>
+                    <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+                      <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                        {ocrText}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
