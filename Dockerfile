@@ -31,10 +31,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output
-# Next.js standalone output structure: .next/standalone/[WORKDIR]/server.js
-# Since WORKDIR is /app, the files are at: .next/standalone/app/
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/app/ ./
+# Copy entire standalone output
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Find and copy the app directory contents to root
+# In Cloud Build, structure is: standalone/app/
+RUN if [ -d "./app" ] && [ -f "./app/server.js" ]; then \
+      cp -r ./app/* . && \
+      cp -r ./app/.next . 2>/dev/null || true; \
+    else \
+      find . -type d -name "app" -mindepth 1 | head -1 | xargs -I {} sh -c 'cp -r {}/* . 2>/dev/null || true'; \
+    fi
+
+# Copy static files and public directory
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
