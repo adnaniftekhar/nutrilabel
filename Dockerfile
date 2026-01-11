@@ -32,9 +32,13 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy necessary files
+# Note: standalone output includes public and .next/static in its own structure
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Ensure server.js exists (standalone output should include it)
+RUN test -f server.js || (echo "ERROR: server.js not found in standalone output" && exit 1)
 
 # Set ownership
 RUN chown -R nextjs:nodejs /app
