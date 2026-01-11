@@ -23,9 +23,14 @@ steps:
     args:
       - "-c"
       - |
-        TAG="${SHORT_SHA:-$(date +%s)}"
+        # Use SHORT_SHA if available, otherwise use timestamp
+        if [ -n "$$SHORT_SHA" ]; then
+          IMAGE_TAG="$$SHORT_SHA"
+        else
+          IMAGE_TAG="$$(date +%s)"
+        fi
         docker build -f Dockerfile \
-          -t ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${TAG} \
+          -t ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:$$IMAGE_TAG \
           -t ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest \
           .
     id: "build-image"
